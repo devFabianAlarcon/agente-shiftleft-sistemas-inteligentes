@@ -2,4 +2,5 @@
 
 
 def registrar_rutas(app):
-    pass
+    from .transferencias import bp_transferencias
+    app.register_blueprint(bp_transferencias)
