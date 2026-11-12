@@ -2,4 +2,5 @@
 
 
 def registrar_rutas(app):
-    pass
+    from .sesion import bp_sesion
+    app.register_blueprint(bp_sesion)
