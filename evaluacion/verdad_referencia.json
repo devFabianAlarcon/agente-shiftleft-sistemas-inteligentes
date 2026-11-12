@@ -1,0 +1,24 @@
+{
+  "descripcion": "Vulnerabilidades sembradas a proposito en cada PR del banco ficticio. Es la verdad de referencia para medir al agente. Cada una fue verificada con verificar_vulnerabilidades.py.",
+  "prs": {
+    "1": {"rama": "feature/consulta-saldo", "vulnerabilidades": [
+      {"id": "V1", "cwe": "CWE-639", "nombre": "Acceso a objetos ajenos (BOLA/IDOR)", "stride": "Divulgacion de informacion", "archivo": "api/banco/cuentas.py",
+       "evidencia": "La consulta filtra solo por id de cuenta, no por usuario autenticado: ana puede ver el saldo de beto."}]},
+    "2": {"rama": "feature/login", "vulnerabilidades": [
+      {"id": "V2", "cwe": "CWE-307", "nombre": "Sin limite de intentos de autenticacion", "stride": "Suplantacion", "archivo": "api/banco/sesion.py",
+       "evidencia": "50 intentos fallidos seguidos y luego el correcto entra."},
+      {"id": "V3", "cwe": "CWE-798", "nombre": "Clave de firma escrita en el codigo", "stride": "Suplantacion", "archivo": "api/banco/sesion.py",
+       "evidencia": "CLAVE_FIRMA es una constante en el codigo fuente."}]},
+    "3": {"rama": "feature/transferencias", "vulnerabilidades": [
+      {"id": "V4", "cwe": "CWE-915", "nombre": "Asignacion masiva del limite diario", "stride": "Elevacion de privilegios / Manipulacion", "archivo": "api/banco/transferencias.py",
+       "evidencia": "operacion.update(datos) permite enviar limite_diario y saltarse el limite."}]},
+    "4": {"rama": "feature/busqueda-movimientos", "vulnerabilidades": [
+      {"id": "V5", "cwe": "CWE-89", "nombre": "Inyeccion SQL en la busqueda", "stride": "Manipulacion / Divulgacion de informacion", "archivo": "api/banco/movimientos.py",
+       "evidencia": "q=%' OR 1=1 -- devuelve movimientos de otros usuarios."}]},
+    "5": {"rama": "feature/auditoria", "vulnerabilidades": [
+      {"id": "V6", "cwe": "CWE-532", "nombre": "Datos sensibles en el log", "stride": "Divulgacion de informacion", "archivo": "api/banco/registro.py",
+       "evidencia": "El log guarda el cuerpo completo de cada peticion, incluidas contrasena y documento."}]},
+    "6": {"rama": "feature/idioma", "vulnerabilidades": []}
+  },
+  "total_vulnerabilidades": 6
+}

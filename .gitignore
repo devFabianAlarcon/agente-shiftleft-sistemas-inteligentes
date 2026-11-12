@@ -1,0 +1,13 @@
+__pycache__/
+*.db
+*.log
+.venv/
+.env
+instance/
+agente/indice_faiss/
+
+# Archivos de Claude Code (contexto local, no se versionan)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+.mcp.json
