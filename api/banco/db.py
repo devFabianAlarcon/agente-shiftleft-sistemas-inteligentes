@@ -77,8 +77,8 @@ def init_db():
             (i, usuario, documento, hash_clave(clave, sal), sal),
         )
         conn.execute(
-            "INSERT INTO cuentas (id, usuario_id, numero, saldo) VALUES (?, ?, ?, ?)",
-            (i, i, f"0011-{i:04d}", 1_500_000 * i),
+            "INSERT INTO cuentas (id, usuario_id, numero, saldo, limite_diario) VALUES (?, ?, ?, ?, ?)",
+            (i, i, f"0011-{i:04d}", 1_500_000 * i, 500_000),
         )
         conn.execute(
             "INSERT INTO movimientos (cuenta_id, descripcion, valor) VALUES (?, ?, ?)",
