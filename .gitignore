@@ -1,0 +1,7 @@
+__pycache__/
+*.db
+*.log
+.venv/
+.env
+instance/
+agente/indice_faiss/

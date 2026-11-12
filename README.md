@@ -11,11 +11,22 @@ seguridad verificables y la prueba que valida cada uno.
 ## Cómo correrla
 
 ```bash
+cd api
 pip install -r requirements.txt
 flask --app banco init-db
 flask --app banco run
 pytest
 ```
+
+## Estructura del repositorio
+
+| Carpeta | Contenido |
+|---|---|
+| `api/` | API del banco ficticio (Flask). Los 6 PR solo modifican esta carpeta |
+| `n8n/` | Flujos exportados de n8n (Nivel 1) |
+| `agente/` | Notebook y código del agente en LangChain (Nivel 2) |
+| `sistema_experto/` | Reglas y motor de inferencia (Nivel 3) |
+| `evaluacion/` | Verdad de referencia, verificación de vulnerabilidades y resultados |
 
 ## Cambios de prueba (un pull request por rama)
 
@@ -29,8 +40,8 @@ pytest
 | 6 | `feature/idioma` | Cambiar el idioma de la interfaz |
 
 La lista de vulnerabilidades sembradas (verdad de referencia) está en
-`evaluacion/verdad_referencia.json`, solo en la rama `evaluacion` para no "contaminar" lo que
-lee el agente.
+`evaluacion/verdad_referencia.json`. El agente solo lee el diff y la descripción de cada PR,
+así que este archivo no le da pistas.
 
 ## Uso de IA generativa
 
