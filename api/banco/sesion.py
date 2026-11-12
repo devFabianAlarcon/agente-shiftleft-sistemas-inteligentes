@@ -9,7 +9,7 @@ from .db import get_db, hash_clave
 
 bp_sesion = Blueprint("sesion", __name__)
 
-CLAVE_FIRMA = "andino-super-secreto-2026"
+CLAVE_FIRMA = "unal-super-secreto-2026"
 
 
 def firmar(usuario_id):
