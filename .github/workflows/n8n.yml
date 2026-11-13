@@ -1,0 +1,41 @@
+# Nivel 1 (n8n): cada vez que se abre o actualiza un pull request, avisa al flujo de n8n
+# "Shift-left · Análisis de seguridad del PR" para que analice ese cambio.
+#
+# El flujo de n8n lee el PR por la API de GitHub, modela las amenazas y escribe la matriz
+# de trazabilidad (Google Sheets, Gmail y Telegram). Aquí solo se dispara el Webhook.
+#
+# Requiere el secreto del repositorio N8N_WEBHOOK_URL (Production URL del nodo Webhook).
+name: Revisión de seguridad (n8n)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:            # permite lanzarlo a mano sobre un PR ya abierto
+    inputs:
+      pr:
+        description: Número del pull request a analizar
+        required: true
+        type: number
+
+permissions: {}                 # el job no necesita permisos sobre el repositorio
+
+jobs:
+  avisar-a-n8n:
+    runs-on: ubuntu-latest
+    # Los PR que vienen de un fork no reciben secretos: se omiten.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Llamar al Webhook de n8n con el número de PR
+        env:
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+          NUMERO_PR: ${{ github.event.pull_request.number || inputs.pr }}
+        run: |
+          if [ -z "$N8N_WEBHOOK_URL" ]; then
+            echo "Falta el secreto N8N_WEBHOOK_URL" && exit 1
+          fi
+          curl --fail --silent --show-error -X POST "$N8N_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"pr\": ${NUMERO_PR}}"
+          echo "n8n recibió el PR #${NUMERO_PR}"
