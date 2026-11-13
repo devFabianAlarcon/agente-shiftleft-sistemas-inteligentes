@@ -1,0 +1,2 @@
+# Dependencias del agente (Nivel 2). Se amplía a medida que se agregan módulos.
+requests

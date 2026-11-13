@@ -1,0 +1,43 @@
+name: Revisión de seguridad (agente LangChain)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Número del pull request a analizar
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  analizar-pr:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Descargar el código del agente (rama main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: agente/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r agente/requirements.txt
+
+      - name: Leer el pull request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NUMERO_PR: ${{ github.event.pull_request.number || inputs.pr }}
+        run: python agente/github_pr.py "$NUMERO_PR"
