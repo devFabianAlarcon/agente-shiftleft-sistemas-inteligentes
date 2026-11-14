@@ -1,3 +1,10 @@
+# Niveles 2 y 3 (LangChain): corre el agente de este repositorio sobre el pull request,
+# publica el reporte como comentario en el PR y avisa por Telegram si hay prioridad alta.
+#
+# Se usa el código del agente que está en main, nunca el de la rama del PR: el cambio del
+# PR solo se LEE por la API de GitHub (título, historia de usuario y diff), no se ejecuta.
+#
+# Secretos del repositorio: GOOGLE_API_KEY, TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID.
 name: Revisión de seguridad (agente LangChain)
 
 on:
@@ -12,7 +19,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write          # para publicar el comentario en el PR
 
 jobs:
   analizar-pr:
@@ -22,12 +29,12 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - name: Descargar el código del agente (rama main)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: main
 
       - name: Preparar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -36,8 +43,26 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r agente/requirements.txt
 
-      - name: Leer el pull request
+      # El índice FAISS tarda unos 2 minutos en construirse: se guarda en caché y solo
+      # se reconstruye cuando cambia el archivo que define las fuentes.
+      - name: Recuperar el índice de documentos OWASP
+        id: indice
+        uses: actions/cache@v4
+        with:
+          path: agente/indice_faiss
+          key: indice-faiss-${{ hashFiles('agente/base_conocimiento.py') }}
+
+      - name: Construir el índice (solo si no estaba en caché)
+        if: steps.indice.outputs.cache-hit != 'true'
         env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: python agente/base_conocimiento.py
+
+      - name: Analizar el pull request
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           NUMERO_PR: ${{ github.event.pull_request.number || inputs.pr }}
-        run: python agente/github_pr.py "$NUMERO_PR"
+        run: python agente/ejecutar.py "$NUMERO_PR" --comentar --telegram

@@ -1,2 +1,8 @@
 # Dependencias del agente (Nivel 2). Se amplía a medida que se agregan módulos.
 requests
+langchain-core
+langchain-google-genai
+langchain-community
+langchain-text-splitters
+faiss-cpu
+langgraph

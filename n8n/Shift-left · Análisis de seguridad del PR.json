@@ -1,0 +1,673 @@
+{
+  "name": "Shift-left · Análisis de seguridad del PR",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "shiftleft-pr",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1809f774-d342-4529-958b-dc672f997e9b",
+      "name": "Webhook",
+      "webhookId": "af5b46cf-ea55-46eb-a9b5-c3a25a55d58e"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/devFabianAlarcon/agente-shiftleft-sistemas-inteligentes/pulls/{{ $json.body.pr }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "996d311e-76cf-43b3-87d5-06ff8edafbcc",
+      "name": "Datos del PR"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/devFabianAlarcon/agente-shiftleft-sistemas-inteligentes/pulls/{{ $('Webhook').item.json.body.pr }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3.diff"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "29faa0ff-0ff3-450c-a759-1090278b7b5c",
+      "name": "Diff del PR"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Pull request #{{ $json.numero_pr }}: {{ $json.titulo }}\n\nHistoria de usuario:\n{{ $json.historia }}\n\nCambio de código (diff):\n{{ $json.diff }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Eres un analista de seguridad de aplicaciones (AppSec) que revisa pull requests de una API bancaria.\n\nTu tarea:\n1. Modela las amenazas del cambio con STRIDE. Analiza SOLO las líneas que el diff agrega o modifica, no el resto del sistema.\n2. Para cada amenaza real, escribe un criterio de aceptación de seguridad verificable en formato Gherkin (Dado / Cuando / Entonces), en español.\n3. Propón el tipo de prueba que lo valida: SAST, DAST o unitaria.\n\nReglas:\n- Usa la herramienta buscar_owasp para sustentar el control que propones.\n- Usa la herramienta consultar_cwe para confirmar que el identificador CWE existe y corresponde. No inventes identificadores: si no puedes confirmarlo, deja el campo cwe vacío.\n- stride debe ser una de: Suplantación, Manipulación, Repudio, Divulgación de información, Denegación de servicio, Elevación de privilegios.\n- prioridad debe ser: alta, media o baja.\n- Si el cambio no introduce amenazas, devuelve la lista hallazgos vacía. No reportes hallazgos para rellenar.\n- Cuando ya tengas la información necesaria, entrega la respuesta final en el formato pedido. Nunca escribas una llamada a herramienta como texto.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "a0a9f22c-9b44-4f5c-b1f8-c62269715c52",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1616,
+        224
+      ],
+      "id": "cebaf677-9f1e-4b4d-ac43-0f6029cfcab8",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Consulta una debilidad en el catálogo CWE de MITRE. Entrada: solo el número del CWE, por ejemplo 89.",
+        "url": "=https://cwe-api.mitre.org/api/v1/cwe/weakness/{{ $fromAI('numero', 'Número del CWE, solo dígitos, por ejemplo 89', 'string') }}",
+        "options": {},
+        "optimizeResponse": true,
+        "dataField": "Weaknesses",
+        "fieldsToInclude": "selected",
+        "fields": "ID,Name,Description"
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
+      "position": [
+        1136,
+        208
+      ],
+      "id": "1e690f11-82d8-4f6b-adf0-ad8cff00a3c5",
+      "name": "consultar_cwe"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Busca fragmentos de OWASP ASVS, OWASP API Security Top 10 y Threat Modeling Cheat Sheet. Úsala para encontrar el control de seguridad que mitiga una amenaza. Entrada: descripción breve de la amenaza en inglés.",
+        "tableName": {
+          "__rl": true,
+          "value": "documentos_owasp",
+          "mode": "list",
+          "cachedResultName": "documentos_owasp"
+        },
+        "options": {
+          "queryName": "match_documentos_owasp"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.4,
+      "position": [
+        1424,
+        48
+      ],
+      "id": "974defb9-6695-406d-899b-63de3d7a1a38",
+      "name": "buscar_owasp",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eEcWHPgpdgppTSCY",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"hallazgos\": [\n    {\n      \"stride\": \"Suplantación\",\n      \"componente\": \"api/banco/sesion.py - POST /login\",\n      \"descripcion\": \"Descripción breve de la amenaza\",\n      \"cwe\": \"CWE-307\",\n      \"control\": \"Nombre del control de seguridad\",\n      \"criterio_gherkin\": \"Dado ... Cuando ... Entonces ...\",\n      \"tipo_prueba\": \"DAST\",\n      \"prioridad\": \"alta\"\n    }\n  ]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1280,
+        208
+      ],
+      "id": "965ac93a-55c8-4ba4-a284-dde0a5037b73",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pr   = $('Datos del PR').first().json;\nconst diff = $('Diff del PR').first().json.data;\n\nreturn [{\n  json: {\n    numero_pr: pr.number,\n    titulo:    pr.title,\n    historia:  pr.body,          // historia de usuario escrita en el PR\n    rama:      pr.head.ref,\n    url_pr:    pr.html_url,\n    diff:      diff.slice(0, 12000),   // límite para no exceder el contexto del modelo\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "316df0fc-9e6b-4da5-b9bf-0e91c608c5e1",
+      "name": "Preparar entrada"
+    },
+    {
+      "parameters": {
+        "sendTo": "=tu_correo@ejemplo.com",
+        "subject": "={{ $json.asunto }}",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2160,
+        -176
+      ],
+      "id": "2163f47b-437f-41cc-975e-76ba79eb366c",
+      "name": "Send a message",
+      "webhookId": "afa6c8df-37f5-41b8-84fa-7c507fc2948d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "DslvRith7iUNxKqq",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Resume la corrida en un solo elemento: correo en HTML y texto corto para Telegram.\nconst filas  = $('Armar matriz').all().map(i => i.json);\nconst pr     = filas[0];\nconst reales = filas.filter(f => f.id_amenaza);            // descarta la fila \"Sin hallazgos\"\nconst altas  = reales.filter(f => f.prioridad === 'alta');\n\nconst esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nconst filasHtml = reales.map(f => `\n  <tr>\n    <td>${esc(f.id_amenaza)}</td><td>${esc(f.stride)}</td><td>${esc(f.cwe)}</td>\n    <td>${esc(f.descripcion)}</td><td>${esc(f.control)}</td>\n    <td>${esc(f.id_requisito)}<br>${esc(f.criterio_gherkin).replace(/\\n/g, '<br>')}</td>\n    <td>${esc(f.id_prueba)}<br>${esc(f.tipo_prueba)}</td><td>${esc(f.prioridad)}</td>\n  </tr>`).join('');\n\nconst html = `\n  <h3>Revisión de seguridad del PR #${pr.numero_pr}: ${esc(pr.titulo)}</h3>\n  <p><a href=\"${pr.evidencia}\">${pr.evidencia}</a></p>\n  ${reales.length === 0\n    ? '<p>El agente no encontró amenazas en este cambio.</p>'\n    : `<table border=\"1\" cellpadding=\"6\" style=\"border-collapse:collapse;font-size:13px\">\n         <tr><th>Amenaza</th><th>STRIDE</th><th>CWE</th><th>Descripción</th><th>Control</th>\n             <th>Requisito (Gherkin)</th><th>Prueba</th><th>Prioridad</th></tr>\n         ${filasHtml}\n       </table>`}`;\n\nconst telegram =\n  `🚨 <b>PR #${pr.numero_pr}: ${esc(pr.titulo)}</b>\\n` +\n  `${altas.length} hallazgo(s) de prioridad alta:\\n` +\n  altas.map(f => `• ${esc(f.id_amenaza)} — ${esc(f.stride)} (${esc(f.cwe) || 'sin CWE'})`).join('\\n') +\n  `\\n${pr.evidencia}`;\n\nreturn [{ json: {\n  numero_pr: pr.numero_pr,\n  total:     reales.length,\n  altas:     altas.length,\n  asunto:    `[Shift-left] PR #${pr.numero_pr}: ${reales.length} hallazgo(s), ${altas.length} de prioridad alta`,\n  html,\n  telegram,\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        -176
+      ],
+      "id": "cdb90b4f-9c66-42fa-8959-308d5a7cb92a",
+      "name": "Armar reporte"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "6730e542-271b-44a4-bf5c-26d65cc41638",
+              "leftValue": "={{ $('Armar reporte').item.json.altas }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        2384,
+        -176
+      ],
+      "id": "fee9912e-af96-4498-b390-52d3ba6d5df9",
+      "name": "¿Prioridad alta?"
+    },
+    {
+      "parameters": {
+        "chatId": "TU_CHAT_ID",
+        "text": "={{ $('Armar reporte').item.json.telegram }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2640,
+        -192
+      ],
+      "id": "90116d4d-b7de-4e7e-bf63-24bdf3179efb",
+      "name": "Send a text message",
+      "webhookId": "f19dea4a-d83b-4e4a-b4f3-d55840055726",
+      "credentials": {
+        "telegramApi": {
+          "id": "6eQ0xxBneTnXu1Wr",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1reXs5mXxpPni9knsSUQtOJaTl-e6OAYAdUXEfxp9WjU",
+          "mode": "list",
+          "cachedResultName": "Matriz de trazabilidad",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1reXs5mXxpPni9knsSUQtOJaTl-e6OAYAdUXEfxp9WjU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1reXs5mXxpPni9knsSUQtOJaTl-e6OAYAdUXEfxp9WjU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ejecucion",
+              "displayName": "ejecucion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "numero_pr",
+              "displayName": "numero_pr",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "titulo",
+              "displayName": "titulo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id_amenaza",
+              "displayName": "id_amenaza",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stride",
+              "displayName": "stride",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "componente",
+              "displayName": "componente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "descripcion",
+              "displayName": "descripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cwe",
+              "displayName": "cwe",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "control",
+              "displayName": "control",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id_requisito",
+              "displayName": "id_requisito",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "criterio_gherkin",
+              "displayName": "criterio_gherkin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "id_prueba",
+              "displayName": "id_prueba",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tipo_prueba",
+              "displayName": "tipo_prueba",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "prioridad",
+              "displayName": "prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "evidencia",
+              "displayName": "evidencia",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        -176
+      ],
+      "id": "2139c549-827b-41a5-8c90-fa5ac7435538",
+      "name": "Armar reporte1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7a4LfjAhAZqImu51",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convierte la respuesta del agente en filas de la matriz de trazabilidad:\n// amenaza -> requisito (criterio Gherkin) -> prueba -> evidencia (enlace al PR).\nconst entrada   = $('Preparar entrada').first().json;\nconst hallazgos = $json.output?.hallazgos ?? [];\nconst pr        = entrada.numero_pr;\n\nconst base = {\n  fecha:     new Date().toISOString(),\n  ejecucion: $execution.id,\n  numero_pr: pr,\n  titulo:    entrada.titulo,\n};\n\n// PR sin amenazas: se deja una fila para que la corrida quede registrada.\nif (hallazgos.length === 0) {\n  return [{ json: { ...base, id_amenaza: '', stride: 'Sin hallazgos', componente: '', descripcion: '',\n    cwe: '', control: '', id_requisito: '', criterio_gherkin: '', id_prueba: '', tipo_prueba: '',\n    prioridad: 'ninguna', evidencia: entrada.url_pr } }];\n}\n\nreturn hallazgos.map((h, i) => {\n  const n = i + 1;\n  // El modelo a veces devuelve \"307\" y a veces \"CWE-307\": se deja siempre \"CWE-307\".\n  const numero = String(h.cwe ?? '').replace(/\\D/g, '');\n  return { json: {\n    ...base,\n    id_amenaza:       `AM-PR${pr}-${n}`,\n    stride:           h.stride,\n    componente:       h.componente,\n    descripcion:      h.descripcion,\n    cwe:              numero ? `CWE-${numero}` : '',\n    control:          h.control,\n    id_requisito:     `REQ-PR${pr}-${n}`,\n    criterio_gherkin: h.criterio_gherkin,\n    id_prueba:        `PRU-PR${pr}-${n}`,\n    tipo_prueba:      h.tipo_prueba,\n    prioridad:        String(h.prioridad ?? '').toLowerCase(),\n    evidencia:        entrada.url_pr,\n  } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        -176
+      ],
+      "id": "7dfe02f7-3307-4e06-a6db-d17483f7fc80",
+      "name": "Armar matriz"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        208
+      ],
+      "id": "6e0fc3e7-d0ba-4c2b-90ae-3e1828d4aa17",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BPaaMTwkiNuBKXxW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Datos del PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos del PR": {
+      "main": [
+        [
+          {
+            "node": "Diff del PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Diff del PR": {
+      "main": [
+        [
+          {
+            "node": "Preparar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "buscar_owasp",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_cwe": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "buscar_owasp": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Armar matriz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar entrada": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "¿Prioridad alta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar reporte": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Prioridad alta?": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar reporte1": {
+      "main": [
+        [
+          {
+            "node": "Armar reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar matriz": {
+      "main": [
+        [
+          {
+            "node": "Armar reporte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "dc061460-9303-4e83-bc9c-694429a8eeff",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "556ee5078f86584d22bb2afbf6cf71fd856c071908231f6c54fd4d0fe7083bfe"
+  },
+  "nodeGroups": [],
+  "id": "Gf2EILgFvvpcahui",
+  "tags": []
+}

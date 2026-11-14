@@ -1,0 +1,218 @@
+{
+  "name": "Shift-left · Carga de fuentes OWASP",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b7d16dea-5f80-4d2f-abd1-9fdf6c1cded2",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const asvs = 'https://raw.githubusercontent.com/OWASP/ASVS/v4.0.3/4.0/en/';\nconst api  = 'https://raw.githubusercontent.com/OWASP/API-Security/master/editions/2023/en/';\n\nconst fuentes = [\n  { fuente: 'Threat Modeling Cheat Sheet', url: 'https://raw.githubusercontent.com/OWASP/CheatSheetSeries/master/cheatsheets/Threat_Modeling_Cheat_Sheet.md' },\n  { fuente: 'API Top 10 - API1 BOLA',               url: api + '0xa1-broken-object-level-authorization.md' },\n  { fuente: 'API Top 10 - API2 Autenticacion',      url: api + '0xa2-broken-authentication.md' },\n  { fuente: 'API Top 10 - API3 Propiedades',        url: api + '0xa3-broken-object-property-level-authorization.md' },\n  { fuente: 'ASVS V2 Autenticacion',                url: asvs + '0x11-V2-Authentication.md' },\n  { fuente: 'ASVS V4 Control de acceso',            url: asvs + '0x12-V4-Access-Control.md' },\n  { fuente: 'ASVS V5 Validacion',                   url: asvs + '0x13-V5-Validation-Sanitization-Encoding.md' },\n  { fuente: 'ASVS V6 Criptografia',                 url: asvs + '0x14-V6-Cryptography.md' },\n  { fuente: 'ASVS V7 Errores y logs',               url: asvs + '0x15-V7-Error-Logging.md' },\n];\n\nreturn fuentes.map(f => ({ json: f }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5e283653-a148-4924-9c98-62ecc926edb3",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "b3f8debd-d18a-4b86-abc9-282938298c9f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documentos_owasp",
+          "mode": "list",
+          "cachedResultName": "documentos_owasp"
+        },
+        "options": {
+          "queryName": "match_documentos_owasp"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "1382fbf9-8f83-40ef-88e6-a6459c4e43ec",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eEcWHPgpdgppTSCY",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        208
+      ],
+      "id": "fc82c7c1-3bfa-429f-9333-cb6591ba21ad",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.data }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "fuente",
+                "value": "={{ $('Code in JavaScript').item.json.fuente }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        816,
+        208
+      ],
+      "id": "6701bfc5-9cc9-4059-8fe6-b30f01d6d420",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "chunkSize": 500,
+        "chunkOverlap": 100
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        752,
+        416
+      ],
+      "id": "033c83df-a572-415b-81a2-f2ae5cf3852c",
+      "name": "Character Text Splitter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4b946ee9-fcff-4c0e-9ad0-29a9ae7abaea",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "556ee5078f86584d22bb2afbf6cf71fd856c071908231f6c54fd4d0fe7083bfe"
+  },
+  "nodeGroups": [],
+  "id": "y5kEJI95l2XdbX5g",
+  "tags": []
+}
